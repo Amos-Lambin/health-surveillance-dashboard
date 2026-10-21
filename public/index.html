@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Disease Surveillance Dashboard</title>
+  <meta name="description" content="Weekly notifiable disease counts by district.">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to main content</a>
+  <header class="top">
+    <h1>Weekly disease surveillance</h1>
+    <p class="sub">Starter layout with placeholder numbers. Live data arrives in step 3.</p>
+  </header>
+
+  <main id="main">
+    <section aria-labelledby="kpi-h">
+      <h2 id="kpi-h">This week</h2>
+      <div class="kpis">
+        <div class="kpi"><span class="val" id="kpi-cases">412</span><span class="lbl">Cases reported</span></div>
+        <div class="kpi"><span class="val" id="kpi-change">+8%</span><span class="lbl">Change vs last week</span></div>
+        <div class="kpi"><span class="val" id="kpi-complete">91%</span><span class="lbl">Reports received (completeness)</span></div>
+      </div>
+    </section>
+
+    <section aria-labelledby="trend-h">
+      <h2 id="trend-h">Weekly cases, last 8 weeks</h2>
+      <p class="note">Axis starts at zero. Placeholder data.</p>
+      <div class="chart"><canvas id="trend" role="img"
+        aria-label="Line chart of weekly cases over 8 weeks, rising from 310 to 412."></canvas></div>
+      <details>
+        <summary>View chart data as a table</summary>
+        <table id="trend-table"><thead><tr><th scope="col">Week</th><th scope="col">Cases</th></tr></thead><tbody></tbody></table>
+      </details>
+    </section>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
