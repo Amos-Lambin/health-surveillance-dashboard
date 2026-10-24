@@ -11,7 +11,7 @@ import requests
 from common import upsert
 
 ARTICLES = {"Malaria": "Malaria", "Measles": "Measles", "Cholera": "Cholera",
-            "Typhoid fever": "Typhoid_fever"}
+            "Yellow fever": "Yellow_fever"}
 # Wikimedia asks for a descriptive User-Agent with contact details. Edit this.
 HEADERS = {"User-Agent": "capstone-dashboard/1.0 (student project; amoslambin@gmail.com)"}
 
