@@ -5,38 +5,91 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Disease Surveillance Dashboard</title>
   <meta name="description" content="Weekly notifiable disease counts by district.">
+  <meta name="robots" content="noindex">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
   <a class="skip" href="#main">Skip to main content</a>
+
   <header class="top">
-    <h1>Weekly disease surveillance | Deployment test</h1>
-    <p class="sub">Starter layout with placeholder numbers. Live data arrives in step 3.</p>
+    <h1>Weekly disease surveillance</h1>
+    <div id="userbar" hidden>
+      <span id="whoami"></span>
+      <button type="button" id="signout" class="secondary">Sign out</button>
+    </div>
   </header>
 
   <main id="main">
-    <section aria-labelledby="kpi-h">
-      <h2 id="kpi-h">This week</h2>
-      <div class="kpis">
-        <div class="kpi"><span class="val" id="kpi-cases">412</span><span class="lbl">Cases reported</span></div>
-        <div class="kpi"><span class="val" id="kpi-change">+8%</span><span class="lbl">Change vs last week</span></div>
-        <div class="kpi"><span class="val" id="kpi-complete">91%</span><span class="lbl">Reports received (completeness)</span></div>
-      </div>
+    <section id="login-view" aria-labelledby="login-h" hidden>
+      <h2 id="login-h">Sign in</h2>
+      <p class="note">Authorised staff only. Demo data, not real patients.</p>
+      <form id="login-form" class="card">
+        <label for="email">Email</label>
+        <input id="email" type="email" autocomplete="username" required>
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password" required>
+        <p id="login-error" class="error" role="alert"></p>
+        <button type="submit">Sign in</button>
+      </form>
     </section>
 
-    <section aria-labelledby="trend-h">
-      <h2 id="trend-h">Weekly cases, last 8 weeks</h2>
-      <p class="note">Axis starts at zero. Placeholder data.</p>
-      <div class="chart"><canvas id="trend" role="img"
-        aria-label="Line chart of weekly cases over 8 weeks, rising from 310 to 412."></canvas></div>
-      <details>
-        <summary>View chart data as a table</summary>
-        <table id="trend-table"><thead><tr><th scope="col">Week</th><th scope="col">Cases</th></tr></thead><tbody></tbody></table>
-      </details>
-    </section>
+    <div id="app-view" hidden>
+      <section aria-labelledby="filters-h">
+        <h2 id="filters-h">Filters</h2>
+        <div class="filters">
+          <div><label for="disease">Disease</label><select id="disease"></select></div>
+          <div><label for="district">District</label><select id="district"></select></div>
+        </div>
+      </section>
+
+      <section aria-labelledby="kpi-h">
+        <h2 id="kpi-h">Latest reported week</h2>
+        <p class="note" id="kpi-week"></p>
+        <div class="kpis">
+          <div class="kpi"><span class="val" id="kpi-cases">-</span><span class="lbl">Cases reported</span></div>
+          <div class="kpi"><span class="val" id="kpi-change">-</span><span class="lbl" id="kpi-change-lbl">Change vs previous reported week</span></div>
+          <div class="kpi"><span class="val" id="kpi-complete">-</span><span class="lbl" id="kpi-complete-lbl">Reports received</span></div>
+        </div>
+        <p id="caution" class="caution" hidden>Fewer than 5 cases in the latest week. Interpret with caution.</p>
+        <p class="note">Reports received are simulated in this demo. Case counts come from the DHIS2 demo database.</p>
+      </section>
+
+      <section aria-labelledby="trend-h">
+        <h2 id="trend-h">Weekly cases</h2>
+        <p class="note">Axis starts at zero. Only weeks with reported data are plotted; breaks in the line are weeks with no data.</p>
+        <div class="chart"><canvas id="trend" role="img" aria-label="Weekly cases chart"></canvas></div>
+        <details>
+          <summary>View chart data as a table</summary>
+          <table id="trend-table"><thead><tr>
+            <th scope="col">Week starting</th><th scope="col">Cases</th><th scope="col">Reports received / expected</th>
+          </tr></thead><tbody></tbody></table>
+        </details>
+      </section>
+
+      <section aria-labelledby="bars-h">
+        <h2 id="bars-h">Cases by disease</h2>
+        <p class="note">Latest reported week. Bars start at zero. These are counts, not rates.</p>
+        <div class="chart"><canvas id="bars" role="img" aria-label="Bar chart of cases by disease"></canvas></div>
+      </section>
+
+      <section id="dist-section" aria-labelledby="dist-h" hidden>
+        <h2 id="dist-h">Cases by district</h2>
+        <p class="note">Latest reported week, highest first. Bars start at zero. These are counts, not rates, so larger districts will naturally have more cases. An asterisk (*) marks fewer than 5 cases: interpret with caution.</p>
+        <div class="chart"><canvas id="dist" role="img" aria-label="Bar chart of cases by district"></canvas></div>
+      </section>
+
+      <section aria-labelledby="control-h">
+        <h2 id="control-h">Control chart: is the latest week unusual?</h2>
+        <p class="note">Dashed lines show the average of the earlier reported weeks and a threshold of the average plus 2 standard deviations. Triangles mark weeks above the threshold. Reported weeks are irregular in this demo data.</p>
+        <p id="alert-status" role="status"></p>
+        <div class="chart"><canvas id="control" role="img" aria-label="Control chart of weekly cases"></canvas></div>
+      </section>
+    </div>
+    <p id="status" class="note" role="status"></p>
   </main>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="js/config.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
