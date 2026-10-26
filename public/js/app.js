@@ -430,6 +430,39 @@ function renderInterest(diseaseName) {
     ' over ' + pts.length + ' weeks. Latest week starting ' + last.week_start + ': ' + last.views + ' views.');
 }
 
+/* ---------- CSV export (aggregated district-week counts only) ---------- */
+function csvCell(v) {
+  let t = v === null || v === undefined ? '' : String(v);
+  if (typeof v === 'string' && /^[=+\-@\t\r]/.test(t)) t = "'" + t; // block spreadsheet formula injection
+  return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+}
+
+function exportCsv() {
+  const diseaseId = Number($('disease').value);
+  const dv = $('district').value;
+  const disease = state.diseases.find((d) => d.id === diseaseId);
+  const names = new Map(state.districts.map((d) => [d.id, d.name]));
+  const rows = state.rows
+    .filter((r) => r.disease_id === diseaseId && (dv === 'all' || r.district_id === Number(dv)))
+    .sort((a, b) => (names.get(a.district_id) || '').localeCompare(names.get(b.district_id) || '')
+      || a.week_start.localeCompare(b.week_start));
+  const header = ['district', 'disease', 'icd10', 'week_start', 'cases', 'reports_received',
+    'reports_expected', 'completeness_pct', 'fewer_than_5_cases'];
+  const lines = [header.join(',')].concat(rows.map((r) => [
+    names.get(r.district_id), disease.name, disease.icd10, r.week_start, r.cases,
+    r.reports_received, r.reports_expected,
+    Math.round((1000 * r.reports_received) / r.reports_expected) / 10, r.cases < 5 ? 'yes' : 'no'
+  ].map(csvCell).join(',')));
+  const blob = new Blob(['\ufeff' + lines.join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8' });
+  const label = dv === 'all' ? 'all-districts' : names.get(Number(dv));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = ('surveillance_' + disease.name + '_' + label + '.csv').toLowerCase().replace(/[^a-z0-9_.]+/g, '-');
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  $('status').textContent = rows.length + ' rows downloaded.';
+}
+
 /* ---------- wiring ---------- */
 $('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -443,6 +476,7 @@ $('login-form').addEventListener('submit', async (e) => {
   }
 });
 $('signout').addEventListener('click', signOut);
+$('export').addEventListener('click', exportCsv);
 $('disease').addEventListener('change', render);
 $('district').addEventListener('change', render);
 

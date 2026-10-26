@@ -40,6 +40,8 @@
           <div><label for="disease">Disease</label><select id="disease"></select></div>
           <div><label for="district">District</label><select id="district"></select></div>
         </div>
+        <p><button type="button" id="export" class="secondary">Download CSV of this view</button></p>
+        <p class="note">Aggregated weekly counts per district only. No patient-level data. Respects your role: you can only export what you can see.</p>
       </section>
 
       <section aria-labelledby="kpi-h">
@@ -57,7 +59,7 @@
       <div class="grid">
       <section class="span-2" aria-labelledby="map-h">
         <h2 id="map-h">Map: cases by district</h2>
-        <p class="note">Latest reported week for the selected disease. Select a district to filter the whole dashboard. Darker means more cases.</p>
+        <p class="note">Latest reported week for the selected disease. Select a district to filter the whole dashboard. Darker means more cases (counts, not rates).</p>
         <div class="map-body">
           <div class="map-wrap"><svg id="map" role="group" aria-label="Map of cases by district" viewBox="0 0 600 600"></svg></div>
           <div class="map-side">
