@@ -10,6 +10,8 @@ let chart = null;
 let chartBars = null;
 let chartCtl = null;
 let chartDist = null;
+let chartInt = null;
+let mapShapes = null;
 
 /* ---------- pure helpers ---------- */
 function weeksBetween(a, b) {
@@ -88,14 +90,15 @@ function fill(select, items) {
 async function init() {
   $('status').textContent = 'Loading data...';
   try {
-    const [profiles, districts, diseases, rows] = await Promise.all([
+    const [profiles, districts, diseases, rows, interest] = await Promise.all([
       api('/rest/v1/profiles?select=full_name,role,district_id'),
-      api('/rest/v1/districts?select=id,name&order=name'),
+      api('/rest/v1/districts?select=id,name,dhis2_uid&order=name'),
       api('/rest/v1/diseases?select=id,name,icd10&order=name'),
-      api('/rest/v1/weekly_cases_flagged?select=district_id,disease_id,week_start,cases,reports_received,reports_expected,low_count&order=week_start&limit=5000')
+      api('/rest/v1/weekly_cases_flagged?select=district_id,disease_id,week_start,cases,reports_received,reports_expected,low_count&order=week_start&limit=5000'),
+      api('/rest/v1/web_interest?select=term,week_start,views&order=week_start&limit=3000')
     ]);
     if (!profiles.length) { showLogin('Your account has no role assigned. Ask an administrator.'); return; }
-    state = { profile: profiles[0], districts, diseases, rows };
+    state = { profile: profiles[0], districts, diseases, rows, interest };
   } catch (e) {
     if (e.status === 401) { signOut(); showLogin('Your session has expired. Please sign in again.'); return; }
     $('status').textContent = 'Could not load data (' + e.message + '). Try again later.';
@@ -181,14 +184,17 @@ function render() {
 
 
 function clearExtras() {
-  [chartBars, chartCtl, chartDist].forEach((c) => { if (c) c.destroy(); });
-  chartBars = null; chartCtl = null; chartDist = null;
+  [chartBars, chartCtl, chartDist, chartInt].forEach((c) => { if (c) c.destroy(); });
+  chartBars = null; chartCtl = null; chartDist = null; chartInt = null;
+  $('map').replaceChildren(); $('legend').replaceChildren(); $('map-caption').textContent = '';
   $('dist-section').hidden = true;
   $('alert-status').textContent = '';
 }
 
 function renderExtras(diseaseId, districtId, districtName, series) {
   const latest = series[series.length - 1];
+  renderMap(diseaseId, districtId, latest.week);
+  renderInterest(state.diseases.find((d) => d.id === diseaseId).name);
 
   // District comparison: only for the national view.
   const distSec = $('dist-section');
@@ -272,6 +278,156 @@ function renderExtras(diseaseId, districtId, districtName, series) {
       plugins: { legend: { display: true } } }
   });
   $('control').setAttribute('aria-label', 'Control chart for ' + districtName + '. ' + status.textContent);
+}
+
+/* ---------- map (plain SVG, no map library, no external tiles) ---------- */
+function eachRing(geometry, fn) {
+  const polys = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
+  polys.forEach((p) => p.forEach(fn));
+}
+
+async function getMapShapes() {
+  if (mapShapes) return mapShapes;
+  const res = await fetch('data/districts.geojson');
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const g = await res.json();
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  g.features.forEach((f) => eachRing(f.geometry, (ring) => ring.forEach(([x, y]) => {
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+  })));
+  const k = Math.cos(((minY + maxY) / 2) * Math.PI / 180);
+  const W = 600, scale = W / ((maxX - minX) * k), H = Math.ceil((maxY - minY) * scale);
+  const px = (x) => ((x - minX) * k * scale).toFixed(1);
+  const py = (y) => ((maxY - y) * scale).toFixed(1);
+  const shapes = g.features.map((f) => {
+    let d = '';
+    eachRing(f.geometry, (ring) => { d += 'M' + ring.map(([x, y]) => px(x) + ' ' + py(y)).join('L') + 'Z'; });
+    return { uid: f.properties.uid, name: f.properties.name, d };
+  });
+  mapShapes = { shapes, W, H };
+  return mapShapes;
+}
+
+function selectDistrict(d) {
+  if (!d) return;
+  const opt = [...$('district').options].find((o) => Number(o.value) === d.id);
+  if (!opt) return;
+  $('district').value = opt.value;
+  render();
+}
+
+async function renderMap(diseaseId, districtId, week) {
+  let m;
+  try { m = await getMapShapes(); } catch (e) {
+    $('map-caption').textContent = 'Map boundaries could not be loaded (' + e.message + ').';
+    return;
+  }
+  const isOfficer = state.profile.role === 'district_officer';
+  const byUid = new Map(state.districts.map((d) => [d.dhis2_uid, d]));
+  const totals = new Map();
+  state.rows.forEach((r) => {
+    if (r.disease_id === diseaseId && r.week_start === week) {
+      totals.set(r.district_id, (totals.get(r.district_id) || 0) + r.cases);
+    }
+  });
+  // Managers: scale by the highest district this week. Officers only see one district,
+  // so scale by that district's own highest weekly count.
+  const max = isOfficer
+    ? Math.max(1, ...state.rows.filter((r) => r.disease_id === diseaseId).map((r) => r.cases))
+    : Math.max(1, ...totals.values());
+  const step = max / 5;
+  const COLORS = ['#fef0d9', '#fdcc8a', '#fc8d59', '#e34a33', '#b30000']; // light orange to dark red
+  const GREY = '#c9d0d3';
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = $('map');
+  svg.setAttribute('viewBox', '0 0 ' + m.W + ' ' + m.H);
+  svg.replaceChildren();
+  const selectedUid = districtId === 'all' ? null
+    : (state.districts.find((d) => d.id === districtId) || {}).dhis2_uid;
+  const ordered = m.shapes.slice().sort((a, b) => (a.uid === selectedUid) - (b.uid === selectedUid));
+  let ownPath = null;
+  // A copy of the hovered district drawn on top, enlarged with a shadow, so it "lifts" off the map.
+  const hl = document.createElementNS(NS, 'path');
+  hl.setAttribute('class', 'hl');
+  hl.setAttribute('aria-hidden', 'true');
+  hl.style.display = 'none';
+  const lift = (p) => { hl.setAttribute('d', p.getAttribute('d')); hl.setAttribute('fill', p.getAttribute('fill')); hl.style.display = ''; };
+  const drop = () => { hl.style.display = 'none'; };
+
+  ordered.forEach((s) => {
+    const d = byUid.get(s.uid);
+    const v = d ? totals.get(d.id) : undefined;
+    const p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', s.d);
+    if (isOfficer && !d) { // outside this officer's access: plain white context shape
+      p.style.fill = 'var(--surface)';
+      p.setAttribute('class', 'inert');
+      p.setAttribute('aria-hidden', 'true');
+      svg.appendChild(p);
+      return;
+    }
+    const label = v === undefined ? s.name + ': no data'
+      : s.name + ': ' + v + ' cases' + (v < 5 ? ' (fewer than 5, interpret with caution)' : '');
+    p.setAttribute('fill', v === undefined ? GREY : COLORS[Math.min(4, Math.floor(v / step))]);
+    p.setAttribute('tabindex', '0');
+    p.setAttribute('role', 'button');
+    p.setAttribute('aria-label', label + '. Select to filter.');
+    if (v !== undefined && v < 5) p.style.strokeDasharray = '4 3';
+    if (s.uid === selectedUid) { p.style.stroke = 'var(--ink)'; p.style.strokeWidth = '3'; }
+    if (d) ownPath = ownPath || p;
+    const t = document.createElementNS(NS, 'title'); t.textContent = label; p.appendChild(t);
+    const say = () => { $('map-caption').textContent = label; lift(p); };
+    p.addEventListener('mouseenter', say);
+    p.addEventListener('focus', say);
+    p.addEventListener('mouseleave', drop);
+    p.addEventListener('blur', drop);
+    p.addEventListener('click', () => selectDistrict(d));
+    p.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectDistrict(d); }
+    });
+    svg.appendChild(p);
+  });
+
+  svg.appendChild(hl);
+  if (isOfficer && ownPath) { // zoom to the officer's own district
+    const bb = ownPath.getBBox();
+    const pad = Math.max(bb.width, bb.height) * 0.08;
+    svg.setAttribute('viewBox', [bb.x - pad, bb.y - pad, bb.width + 2 * pad, bb.height + 2 * pad].join(' '));
+  }
+  $('map-caption').textContent = 'Week starting ' + week + '. Hover or focus a district for its count.' +
+    (isOfficer ? ' Colours are relative to this district\'s own highest weekly count.' : '');
+
+  const items = COLORS.map((c, i) => [c, Math.round(i * step) + ' to ' + Math.round((i + 1) * step) + ' cases']);
+  items.push(isOfficer ? ['var(--surface)', 'Other districts (outside your access)'] : [GREY, 'No data']);
+  $('legend').replaceChildren(...items.map(([c, text]) => {
+    const li = document.createElement('li');
+    const sw = document.createElement('span'); sw.className = 'sw'; sw.style.background = c;
+    li.append(sw, text);
+    return li;
+  }));
+}
+
+/* ---------- public interest ---------- */
+function renderInterest(diseaseName) {
+  if (chartInt) { chartInt.destroy(); chartInt = null; }
+  const pts = state.interest.filter((r) => r.term === diseaseName);
+  if (!pts.length) {
+    $('interest').setAttribute('aria-label', 'No pageview data for ' + diseaseName);
+    return;
+  }
+  chartInt = new Chart($('interest'), {
+    type: 'line',
+    data: { labels: pts.map((p) => p.week_start), datasets: [{ label: 'Wikipedia pageviews',
+      data: pts.map((p) => p.views), borderColor: '#cc79a7', backgroundColor: '#cc79a7',
+      pointStyle: 'circle', pointRadius: 3, tension: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false,
+      scales: { y: { beginAtZero: true, title: { display: true, text: 'Views per week' } },
+        x: { ticks: { maxTicksLimit: 8, autoSkip: true }, title: { display: true, text: 'Week starting' } } },
+      plugins: { legend: { display: false } } }
+  });
+  const last = pts[pts.length - 1];
+  $('interest').setAttribute('aria-label', 'Line chart of weekly English Wikipedia pageviews for ' + diseaseName +
+    ' over ' + pts.length + ' weeks. Latest week starting ' + last.week_start + ': ' + last.views + ' views.');
 }
 
 /* ---------- wiring ---------- */

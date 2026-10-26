@@ -54,6 +54,19 @@
         <p class="note">Reports received are simulated in this demo. Case counts come from the DHIS2 demo database.</p>
       </section>
 
+      <div class="grid">
+      <section class="span-2" aria-labelledby="map-h">
+        <h2 id="map-h">Map: cases by district</h2>
+        <p class="note">Latest reported week for the selected disease. Select a district to filter the whole dashboard. Darker means more cases.</p>
+        <div class="map-body">
+          <div class="map-wrap"><svg id="map" role="group" aria-label="Map of cases by district" viewBox="0 0 600 600"></svg></div>
+          <div class="map-side">
+            <p id="map-caption" class="note" role="status"></p>
+            <ul id="legend" class="legend"></ul>
+          </div>
+        </div>
+      </section>
+
       <section aria-labelledby="trend-h">
         <h2 id="trend-h">Weekly cases</h2>
         <p class="note">Axis starts at zero. Only weeks with reported data are plotted; breaks in the line are weeks with no data.</p>
@@ -72,18 +85,25 @@
         <div class="chart"><canvas id="bars" role="img" aria-label="Bar chart of cases by disease"></canvas></div>
       </section>
 
-      <section id="dist-section" aria-labelledby="dist-h" hidden>
-        <h2 id="dist-h">Cases by district</h2>
-        <p class="note">Latest reported week, highest first. Bars start at zero. These are counts, not rates, so larger districts will naturally have more cases. An asterisk (*) marks fewer than 5 cases: interpret with caution.</p>
-        <div class="chart"><canvas id="dist" role="img" aria-label="Bar chart of cases by district"></canvas></div>
-      </section>
-
       <section aria-labelledby="control-h">
         <h2 id="control-h">Control chart: is the latest week unusual?</h2>
         <p class="note">Dashed lines show the average of the earlier reported weeks and a threshold of the average plus 2 standard deviations. Triangles mark weeks above the threshold. Reported weeks are irregular in this demo data.</p>
         <p id="alert-status" role="status"></p>
         <div class="chart"><canvas id="control" role="img" aria-label="Control chart of weekly cases"></canvas></div>
       </section>
+
+      <section aria-labelledby="interest-h">
+        <h2 id="interest-h">Public interest: Wikipedia pageviews</h2>
+        <p class="note" id="interest-note">Weekly views of the English Wikipedia article for the selected disease. This measures worldwide reader interest, not local cases, so treat it only as a weak early-warning signal.</p>
+        <div class="chart"><canvas id="interest" role="img" aria-label="Wikipedia pageviews chart"></canvas></div>
+      </section>
+
+      <section id="dist-section" class="span-2" aria-labelledby="dist-h" hidden>
+        <h2 id="dist-h">Cases by district</h2>
+        <p class="note">Latest reported week, highest first. Bars start at zero. These are counts, not rates, so larger districts will naturally have more cases. An asterisk (*) marks fewer than 5 cases: interpret with caution.</p>
+        <div class="chart"><canvas id="dist" role="img" aria-label="Bar chart of cases by district"></canvas></div>
+      </section>
+      </div>
     </div>
     <p id="status" class="note" role="status"></p>
   </main>
