@@ -1,0 +1,31 @@
+name: Daily surveillance alerts
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 06:00 UTC = 09:00 in Kampala
+  workflow_dispatch:       # run by hand from the Actions tab, optionally with relaxed settings
+    inputs:
+      sigma:
+        description: 'Standard deviations above the average (default 2)'
+        default: '2'
+      persist:
+        description: 'Reported weeks in a row above threshold (default 2)'
+        default: '2'
+jobs:
+  alerts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r pipeline/requirements.txt
+      - run: python pipeline/send_alerts.py --sigma "$SIGMA" --persist "$PERSIST"
+        env:
+          SIGMA: ${{ inputs.sigma || '2' }}
+          PERSIST: ${{ inputs.persist || '2' }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          ALERT_FROM_EMAIL: ${{ secrets.ALERT_FROM_EMAIL }}
+          ALERT_TO: ${{ secrets.ALERT_TO }}
+          DASHBOARD_URL: ${{ secrets.DASHBOARD_URL }}
