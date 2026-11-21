@@ -19,6 +19,19 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r pipeline/requirements.txt
+      - name: Check which secrets reach this run (prints set or EMPTY, never the values)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          ALERT_FROM_EMAIL: ${{ secrets.ALERT_FROM_EMAIL }}
+          ALERT_TO: ${{ secrets.ALERT_TO }}
+          DASHBOARD_URL: ${{ secrets.DASHBOARD_URL }}
+        run: |
+          echo "Repository: ${{ github.repository }}"
+          for n in SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY RESEND_API_KEY ALERT_FROM_EMAIL ALERT_TO DASHBOARD_URL; do
+            if [ -n "${!n}" ]; then echo "$n: set"; else echo "$n: EMPTY"; fi
+          done
       - run: python pipeline/send_alerts.py --sigma "$SIGMA" --persist "$PERSIST"
         env:
           SIGMA: ${{ inputs.sigma || '2' }}
