@@ -23,6 +23,12 @@ import sys
 from collections import defaultdict
 
 
+def check_env(names):
+    missing = [n for n in names if not os.environ.get(n)]
+    if missing:
+        sys.exit("Missing environment variables or GitHub secrets: " + ", ".join(missing))
+
+
 def stats(values):
     n = len(values)
     if n < 2:
@@ -122,6 +128,7 @@ def main():
 
     from dotenv import load_dotenv
     load_dotenv()
+    check_env(["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"])
     rows = fetch_all("weekly_cases", "id,district_id,disease_id,week_start,cases")
     districts = fetch_all("districts", "id,name")
     diseases = fetch_all("diseases", "id,name,icd10")
@@ -139,6 +146,7 @@ def main():
     if a.dry_run:
         print("(dry run: nothing sent, nothing logged)")
         return
+    check_env(["RESEND_API_KEY", "ALERT_TO"])
     to = [x.strip() for x in os.environ["ALERT_TO"].split(",") if x.strip()]
     sender = os.environ.get("ALERT_FROM_EMAIL") or "onboarding@resend.dev"
     send_email(os.environ["RESEND_API_KEY"], sender, to, subject, text, body_html)
@@ -151,4 +159,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:  # print a short, readable reason in the GitHub log
+        resp = getattr(e, "response", None)
+        detail = f" | HTTP {resp.status_code}: {resp.text[:300]}" if resp is not None else ""
+        sys.exit(f"Alert run failed: {type(e).__name__}: {e}{detail}")
