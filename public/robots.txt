@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /about
+Disallow: /data/
+Disallow: /js/
+
+Sitemap: https://health-surveillance-dashboard.pages.dev/sitemap.xml
