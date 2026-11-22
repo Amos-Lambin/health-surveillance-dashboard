@@ -2,6 +2,7 @@
 const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.APP_CONFIG;
 const $ = (id) => document.getElementById(id);
 const DAY = 86400000;
+if (window.Chart) { Chart.defaults.animation = false; }
 
 let token = null;
 try { token = sessionStorage.getItem('token'); } catch (e) { /* storage blocked */ }
@@ -179,7 +180,7 @@ function render() {
     });
     return tr;
   }));
-  renderExtras(diseaseId, districtId, districtName, series);
+  setTimeout(() => renderExtras(diseaseId, districtId, districtName, series), 0);
 }
 
 
@@ -194,7 +195,7 @@ function clearExtras() {
 function renderExtras(diseaseId, districtId, districtName, series) {
   const latest = series[series.length - 1];
   renderMap(diseaseId, districtId, latest.week);
-  renderInterest(state.diseases.find((d) => d.id === diseaseId).name);
+  setTimeout(() => renderInterest(state.diseases.find((d) => d.id === diseaseId).name), 0);
 
   // District comparison: only for the national view.
   const distSec = $('dist-section');
@@ -223,6 +224,7 @@ function renderExtras(diseaseId, districtId, districtName, series) {
       latest.week + '. ' + list.map((i) => i[0] + ' ' + i[1]).join(', ') + '.');
   }
 
+  setTimeout(() => {
   // Comparison bar chart: every disease, same latest week, same district selection.
   const items = state.diseases.map((d) => {
     const w = aggregate(state.rows, d.id, districtId).find((x) => x.week === latest.week);
@@ -240,7 +242,9 @@ function renderExtras(diseaseId, districtId, districtName, series) {
   });
   $('bars').setAttribute('aria-label', 'Bar chart of cases by disease for week starting ' + latest.week + ' in ' +
     districtName + ': ' + items.map((i) => i[0] + ' ' + (i[1] === null ? 'no data' : i[1])).join(', ') + '.');
+  }, 0);
 
+  setTimeout(() => {
   // Control chart: baseline is every reported week before the latest.
   const st = series.length - 1 >= 8 ? stats(series.slice(0, -1).map((s) => s.cases)) : null;
   const status = $('alert-status');
@@ -278,6 +282,7 @@ function renderExtras(diseaseId, districtId, districtName, series) {
       plugins: { legend: { display: true } } }
   });
   $('control').setAttribute('aria-label', 'Control chart for ' + districtName + '. ' + status.textContent);
+  }, 0);
 }
 
 /* ---------- map (plain SVG, no map library, no external tiles) ---------- */
